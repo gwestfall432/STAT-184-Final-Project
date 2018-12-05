@@ -1,0 +1,157 @@
+---
+title: "NBA Player of the Week Analysis"
+output: html_notebook
+---
+
+In order to look at the demographics of NBA players of the week, we first need to load the data table containing this information.
+
+```{r}
+library(DataComputing)
+library(tidyverse)
+library(readr)
+NBA_player_of_the_week <- read_csv("~/NBA_player_of_the_week.csv")
+head(NBA_player_of_the_week)
+
+```
+
+First, let's look at which players have won the NBA player of the week award the most times since the 1984-85 season. LeBron James has been dominant in this award category, winning nearly twice as much as second place Kobe Bryant.
+
+```{r}
+NBA_player_of_the_week %>%
+  group_by(Player) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  head(10)
+
+```
+
+However, up through the 2000-01 season, only one award was given every week for the whole league. Ever since the 2001-02 season, one award has been given each week for each conference, meaning that two players are named every week. Essentially, this makes POTW awards won since 2001 half as valuable. To account for this, we will multiply each player's number of awards won since that time by 0.5. When we do this, we see that LeBron has still "won" the most times, but Michael Jordan and Karl Malone have closed the gap.
+
+```{r}
+NBA_player_of_the_week %>%
+  group_by(Player, Real_value) %>%
+  summarise(count = n()) %>%
+  mutate(true_count = count * Real_value) %>%
+  select(Player, true_count) %>%
+  arrange(desc(true_count)) %>%
+  head(10)
+
+```
+
+Next, we will look at the distribution of ages of all the Player of the Week winners. We can see that the most common age of winners is 25, followed by 28.
+
+```{r}
+NBA_player_of_the_week %>%
+  group_by(Age) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = Age, y = count)) +
+  geom_bar(stat = "identity")
+
+```
+
+With all of the new technology we have to keep players healthy, it would be interesting to see if the average age of winners has increased over time. We will look at this next. When graphed, we actually see that the average age of winners has stayed fairly consistent over time.
+
+```{r}
+NBA_player_of_the_week %>%
+  group_by(`Season short`, Age) %>%
+  summarise(count = n()) %>%
+  mutate(average_age = mean(Age)) %>%
+  ggplot(aes(x = `Season short`, y = average_age)) +
+  geom_point() + geom_line()
+
+```
+
+Next we will examine the distribution of heights of winners. This requires us to change the height from a character string to a numeric value. After doing this, we can see that most winners are at least 75 inches tall, or 6'3".
+
+```{r}
+NBA_player_of_the_week$Height_in <- 
+  sapply(strsplit(NBA_player_of_the_week$Height, "-"),
+         function(x){12 * as.numeric(x[1]) + as.numeric(x[2])})
+
+NBA_player_of_the_week %>%
+  group_by(Height_in) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = Height_in, y = count)) +
+  geom_bar(stat = "identity")
+
+```
+
+Now we will examine the average height of winners over time (like we did with age) to see if basketball has evolved to favor taller or shorter players. Once again, it appears that there is not much of a relationship.
+
+```{r}
+NBA_player_of_the_week %>%
+  group_by(`Season short`, Height_in) %>%
+  summarise(count = n()) %>%
+  mutate(average_height = mean(Height_in)) %>%
+  ggplot(aes(x = `Season short`, y = average_height)) +
+  geom_point() + geom_line()
+
+```
+
+It's a well-known fact that you need a star player to win a championship, but are NBA teams that win it all more likely to have players win POTW throughout the season? We'll examine this by first scraping a table of all the NBA champions from Basketball Reference.
+
+```{r}
+library(rvest)
+page <- "https://www.basketball-reference.com/playoffs/"
+xpath <- '//*[@id="champions_index"]'
+champions_table <- page %>%
+  read_html() %>%
+  html_nodes(xpath = xpath) %>%
+  html_table(fill = TRUE)
+
+champions <- champions_table[[1]]
+colnames(champions) <- as.character(champions[1,])
+champions <-
+  champions %>%
+  filter(row_number() > 1)
+champions
+
+```
+
+Next, we'll change the year to a numeric value and whittle the table down to all we really care about.
+
+```{r}
+champions <-
+  champions %>%
+  mutate(Year = as.numeric(Year)) %>%
+  select(Year, Champion)
+
+champions
+
+```
+
+Then, we will join this table to our POTW table and set up a way to check if a player's team won the championship that season.
+
+```{r}
+NBA_player_of_the_week <-
+  NBA_player_of_the_week %>%
+  left_join(champions, by = c("Season short" = "Year"))
+
+NBA_player_of_the_week %>%
+  select(Player, Team, Champion) %>%
+  mutate(champ = (Team == Champion)) 
+
+```
+
+Next we need to check to see if the proportion of winners on championship teams is different from the expected value. Since the number of NBA teams has grown over time, we will need to add a new variable to the table containing the number of teams in the league at that time.
+
+```{r}
+NBA_player_of_the_week %>%
+  mutate(num_teams = case_when(`Season short` > 1984 & `Season short` < 1989 ~ 23,
+                               `Season short` == 1989 ~ 25,
+                               `Season short` > 1989 & `Season short` < 1996 ~ 27,
+                               `Season short` > 1995 & `Season short` < 2005 ~ 29,
+                               `Season short` > 2004 ~ 30))
+
+```
+
+
+
+
+
+
+
+
+
+
+
