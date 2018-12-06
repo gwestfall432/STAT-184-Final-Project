@@ -1,18 +1,42 @@
 ---
 title: "NBA Player of the Week Analysis"
+author: "Greg Westfall"
+date: December 6, 2018
 output: html_notebook
 ---
 
-In order to look at the demographics of NBA players of the week, we first need to load the data table containing this information.
+<br>
+
+### In this project, we will be examining the different characteristics of NBA player of the week winners since 1985.
+
+<br>
+
+In order to look at these demographics, we first need to load the data table containing this information.
 
 ```{r}
 library(DataComputing)
 library(tidyverse)
 library(readr)
+# Read in the data
 NBA_player_of_the_week <- read_csv("~/NBA_player_of_the_week.csv")
+
+```
+<br>
+
+Next, we'll take a look at what the table looks like.
+
+```{r}
+NBA_player_of_the_week <-
+  NBA_player_of_the_week %>%
+  filter(`Season short` < 2019) # We only want data before this season
+
 head(NBA_player_of_the_week)
 
 ```
+
+<br>
+
+## Players with the Most Awards
 
 First, let's look at which players have won the NBA player of the week award the most times since the 1984-85 season. LeBron James has been dominant in this award category, winning nearly twice as much as second place Kobe Bryant.
 
@@ -25,7 +49,13 @@ NBA_player_of_the_week %>%
 
 ```
 
-However, up through the 2000-01 season, only one award was given every week for the whole league. Ever since the 2001-02 season, one award has been given each week for each conference, meaning that two players are named every week. Essentially, this makes POTW awards won since 2001 half as valuable. To account for this, we will multiply each player's number of awards won since that time by 0.5. When we do this, we see that LeBron has still "won" the most times, but Michael Jordan and Karl Malone have closed the gap.
+<br>
+
+## Adjusted Award Wins
+
+However, up through the 2000-01 season, only one award was given every week for the whole league. Ever since the 2001-02 season, one award has been given each week for each conference, meaning that two players are named every week. Essentially, this makes POTW awards won since 2001 half as valuable. To account for this, we will multiply each player's number of awards won since that time by 0.5. 
+
+We see that LeBron has still "won" the most times, but Michael Jordan and Karl Malone have closed the gap.
 
 ```{r}
 NBA_player_of_the_week %>%
@@ -38,6 +68,10 @@ NBA_player_of_the_week %>%
 
 ```
 
+<br>
+
+## Ages of Winners
+
 Next, we will look at the distribution of ages of all the Player of the Week winners. We can see that the most common age of winners is 25, followed by 28.
 
 ```{r}
@@ -49,21 +83,61 @@ NBA_player_of_the_week %>%
 
 ```
 
-With all of the new technology we have to keep players healthy, it would be interesting to see if the average age of winners has increased over time. We will look at this next. When graphed, we actually see that the average age of winners has stayed fairly consistent over time.
+<br>
+
+With all of the new technology we have to keep players healthy, it would be interesting to see if the average age of winners has increased over time. We will look at this next. When we view this, it's hard to tell what's going on due to the large amount of graphs.
 
 ```{r}
 NBA_player_of_the_week %>%
-  group_by(`Season short`, Age) %>%
+  group_by(Age, `Season short`) %>%
   summarise(count = n()) %>%
-  mutate(average_age = mean(Age)) %>%
-  ggplot(aes(x = `Season short`, y = average_age)) +
-  geom_point() + geom_line()
+  ggplot(aes(x = Age, y = count)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ `Season short`)
 
 ```
+
+<br>
+
+It will be easier to visualize the data if we calculate a variable containing the average age of winners for each year and then making a scatterplot out of this information.
+
+When we do this, we see that there is really no relationship between year and age of winners.
+
+```{r}
+NBA_ages <-
+  NBA_player_of_the_week %>%
+  group_by(`Season short`, Age) %>%
+  summarise(count = n()) %>%
+  mutate(average_age = mean(Age)) # Creates a variable containing average age of winners
+
+NBA_ages %>%
+  ggplot(aes(x = `Season short`, y = average_age)) +
+  geom_point() +
+  stat_smooth(method = lm) +
+  xlab("Year") + ylab("Avg. Age of Winner")
+
+```
+
+<br>
+
+However, in order to be sure, we'll make a linear regression model of the data. As expected, the p-value of the slope of the regression line is 0.462, meaning that we can't conclude that the slope is different than 0. Additionally, the r-squared value is 0.001, meaning that only 0.1% of the variation in age of winners is caused by the year.
+
+```{r}
+# Creates a linear regression model of the data
+lmModAges <- lm(`Season short` ~ average_age, data = NBA_ages)
+
+summary(lmModAges)
+
+```
+
+<br>
+
+## Heights of Winners
 
 Next we will examine the distribution of heights of winners. This requires us to change the height from a character string to a numeric value. After doing this, we can see that most winners are at least 75 inches tall, or 6'3".
 
 ```{r}
+# Function to convert height to inches (numeric) from a character string
 NBA_player_of_the_week$Height_in <- 
   sapply(strsplit(NBA_player_of_the_week$Height, "-"),
          function(x){12 * as.numeric(x[1]) + as.numeric(x[2])})
@@ -72,25 +146,65 @@ NBA_player_of_the_week %>%
   group_by(Height_in) %>%
   summarise(count = n()) %>%
   ggplot(aes(x = Height_in, y = count)) +
-  geom_bar(stat = "identity")
+  geom_bar(stat = "identity") +
+  xlab("Height (in.)")
 
 ```
 
-Now we will examine the average height of winners over time (like we did with age) to see if basketball has evolved to favor taller or shorter players. Once again, it appears that there is not much of a relationship.
+<br>
+
+Now we will examine the average height of winners over time (like we did with age) to see if basketball has evolved to favor taller or shorter players. Once again, it's hard to tell what's going on.
 
 ```{r}
 NBA_player_of_the_week %>%
-  group_by(`Season short`, Height_in) %>%
+  group_by(Height_in, `Season short`) %>%
   summarise(count = n()) %>%
-  mutate(average_height = mean(Height_in)) %>%
-  ggplot(aes(x = `Season short`, y = average_height)) +
-  geom_point() + geom_line()
+  ggplot(aes(x = Height_in, y = count)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ `Season short`) +
+  xlab("Height (in.)")
 
 ```
+
+<br>
+
+As we did before, it will be easier to make a scatterplot of the year and average height of winners. When we do this, it appears that the heights of winners might be getting shorter over time.
+
+```{r}
+NBA_height <-
+  NBA_player_of_the_week %>%
+  group_by(`Season short`, Height_in) %>%
+  summarise(count = n()) %>%
+  mutate(average_height = mean(Height_in)) # Creates a variable of average height by year
+
+NBA_height %>%
+  ggplot(aes(x = `Season short`, y = average_height)) +
+  geom_point() + 
+  stat_smooth(method = lm) +
+  xlab("Year") + ylab("Avg. Height of Winner (in.)")
+
+```
+
+<br>
+
+To be sure that there is an association, we will once again create a linear regression model. From this, we can see that the p-value of the slope is virtually 0, meaning that the slope is definitely negative, or that the average height of winners is decreasing over time. Furthermore, the r-squared value is 0.09, meaning that 9% of the variability in height is due to the year.
+
+```{r}
+# Creates another linear regression model
+lmModHeights <- lm(`Season short` ~ average_height, data = NBA_height)
+
+summary(lmModHeights)
+
+```
+
+<br>
+
+## Do Championship Teams Have Better Players?
 
 It's a well-known fact that you need a star player to win a championship, but are NBA teams that win it all more likely to have players win POTW throughout the season? We'll examine this by first scraping a table of all the NBA champions from Basketball Reference.
 
 ```{r}
+# Scraping the table from the Internet
 library(rvest)
 page <- "https://www.basketball-reference.com/playoffs/"
 xpath <- '//*[@id="champions_index"]'
@@ -100,13 +214,17 @@ champions_table <- page %>%
   html_table(fill = TRUE)
 
 champions <- champions_table[[1]]
+# Setting the headers of the table manually
 colnames(champions) <- as.character(champions[1,])
 champions <-
   champions %>%
   filter(row_number() > 1)
+
 champions
 
 ```
+
+<br>
 
 Next, we'll change the year to a numeric value and whittle the table down to all we really care about.
 
@@ -120,37 +238,152 @@ champions
 
 ```
 
+<br>
+
 Then, we will join this table to our POTW table and set up a way to check if a player's team won the championship that season.
 
 ```{r}
 NBA_player_of_the_week <-
   NBA_player_of_the_week %>%
   left_join(champions, by = c("Season short" = "Year"))
+```
+```{r}
+# Checks for equality between a POTW's team and the champion that year
+NBA_player_of_the_week <-
+  NBA_player_of_the_week %>%
+  mutate(champ = (Team == Champion))
 
 NBA_player_of_the_week %>%
-  select(Player, Team, Champion) %>%
-  mutate(champ = (Team == Champion)) 
+  select(Player, `Season short`, Team, champ)
+   
 
 ```
+
+<br>
 
 Next we need to check to see if the proportion of winners on championship teams is different from the expected value. Since the number of NBA teams has grown over time, we will need to add a new variable to the table containing the number of teams in the league at that time.
 
 ```{r}
-NBA_player_of_the_week %>%
+# Adds a different number of teams based on what year it is
+NBA_player_of_the_week <-
+  NBA_player_of_the_week %>%
   mutate(num_teams = case_when(`Season short` > 1984 & `Season short` < 1989 ~ 23,
                                `Season short` == 1989 ~ 25,
                                `Season short` > 1989 & `Season short` < 1996 ~ 27,
                                `Season short` > 1995 & `Season short` < 2005 ~ 29,
                                `Season short` > 2004 ~ 30))
 
+NBA_player_of_the_week %>%
+  select(Player, `Season short`, Team, champ, num_teams)
+
 ```
 
+<br>
 
+Next, we need to see what proportion of POTW winners' teams won the championship later that season. This number turns out to be around 0.09.
 
+```{r}
+ChampWins <-
+  NBA_player_of_the_week %>%
+  filter(champ == TRUE) # Only keeps players who won the championship that year
 
+prct_champ <- nrow(ChampWins) / nrow(NBA_player_of_the_week)
 
+prct_champ
 
+```
 
+<br>
+
+Now, we need to calculate the average chance of a championship team having a player win player of the week. This number equates to 0.035, which is much less than the observed value.
+
+```{r}
+ProbOfChampWinning <-
+NBA_player_of_the_week %>%
+  mutate(prob_winning = 1 / num_teams) %>%
+  mutate(avg_prob = sum(prob_winning) / nrow(NBA_player_of_the_week))
+
+avg_prob <- ProbOfChampWinning[1, "avg_prob"]
+
+avg_prob
+
+```
+
+<br>
+
+To see if this is significantly different from the expected value, we'll run a hypothesis test. The p-value turns out to be 0, which means that players from championship teams are (somewhat unsurprisingly) more likely to win the award.
+
+```{r}
+prop.test(105, 1145, p = 0.03499781, 
+          alternative = "greater",
+          conf.level = 0.95, correct = TRUE)
+
+```
+
+<br>
+
+## Does Last Name Matter?
+
+As strange as it may sound, it's been said that people with last names starting near the top of the alphabet are more likely to be successful in life. We'll investigate that by seeing if players with last names starting with A, B, or C have a higher chance the award than other players. According to *Answers.com*, the proportion of Americans having last names that start with A, B, and C are 0.0375, 0.0896, and 0.0638, respectively. 
+
+When added up, we expect 0.1909 of the winners to have last names starting with these 3 letters.
+
+```{r}
+A <- 0.0375
+B <- 0.0896
+C <- 0.0638
+
+expected_prop <- A + B + C
+
+expected_prop
+
+```
+
+<br>
+
+Now we'll see what proportion of award winners have last names near the top of the alphabet.
+
+```{r}
+ABCwinners <-
+  NBA_player_of_the_week %>%
+  filter(grepl(" A| B| C", Player)) # Filters out those who don't have A, B, or C surnames
+
+ABCwinners %>%
+  select(Player, Team, `Season short`)
+
+```
+
+<br>
+
+When we calculate the true proportion, it turns out to be lower than our expected value.
+
+```{r}
+prop_ABC <- nrow(ABCwinners) / nrow(NBA_player_of_the_week)
+
+prop_ABC
+
+```
+
+<br>
+
+Nevertheless, we'll still run a hypothesis test to see if the proportion is significantly different. When we do this, we get a p-value of 0.11, meaning that we can say that there is no difference (positive or negative) between the proportion of players with surnames at the top of the alphabet winning the award compared to other players.
+
+```{r}
+prop.test(197, 1145, p = 0.1909, 
+          alternative = "two.sided",
+          conf.level = 0.95, correct = TRUE)
+
+```
+
+<br>
+
+## Conclusion
+
+Well, we certainly found some interesting aspects of the NBA Player of the Week data set, most notably the declining height of winners, the continued greatness of players from championship teams, and the dominance of LeBron James.
+
+I hope you all learned something from this study, I know I sure did!
+
+<br>
 
 
 
