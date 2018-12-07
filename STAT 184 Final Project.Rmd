@@ -187,7 +187,7 @@ NBA_height %>%
 
 <br>
 
-To be sure that there is an association, we will once again create a linear regression model. From this, we can see that the p-value of the slope is virtually 0, meaning that the slope is definitely negative, or that the average height of winners is decreasing over time. Furthermore, the r-squared value is 0.09, meaning that 9% of the variability in height is due to the year.
+To be sure that there is an association, we will once again create a linear regression model. From this, we can see that the p-value of the slope is virtually 0, meaning that the slope is definitely negative, or that the average height of winners is decreasing over time, albeit at 0.036 inches per year. Furthermore, the r-squared value is 0.09, meaning that 9% of the variability in height is due to the year.
 
 ```{r}
 # Creates another linear regression model
