@@ -124,7 +124,7 @@ However, in order to be sure, we'll make a linear regression model of the data. 
 
 ```{r}
 # Creates a linear regression model of the data
-lmModAges <- lm(`Season short` ~ average_age, data = NBA_ages)
+lmModAges <- lm(average_age ~ `Season short`, data = NBA_ages)
 
 summary(lmModAges)
 
@@ -191,7 +191,7 @@ To be sure that there is an association, we will once again create a linear regr
 
 ```{r}
 # Creates another linear regression model
-lmModHeights <- lm(`Season short` ~ average_height, data = NBA_height)
+lmModHeights <- lm(average_height ~ `Season short`, data = NBA_height)
 
 summary(lmModHeights)
 
